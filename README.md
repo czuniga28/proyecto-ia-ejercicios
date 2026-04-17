@@ -38,10 +38,10 @@ Video → 30 fotogramas → MediaPipe BlazePose → 33 landmarks (x, y, z)
 ```
 proyecto_ia/
 ├── paper/
-│   ├── main.tex            # Informe LaTeX del proyecto
-│   └── references.bib      # Bibliografía
-├── documento_tarea.pdf     # Enunciado y diseño preliminar
-├── download_bad_form.sh    # Script para descargar videos de mala forma
+│   ├── main.tex            # Paper IEEE — diseño, metodología y arquitectura completos
+│   └── references.bib      # 6 referencias bibliográficas
+├── documento_tarea.pdf     # Enunciado original del proyecto
+├── download_bad_form.sh    # Script yt-dlp para descargar videos de mala forma
 └── README.md
 ```
 
@@ -67,12 +67,12 @@ bash download_bad_form.sh
 
 ```
 videos/
-├── deadlift/        # ~32 videos — forma correcta
-├── deadlift_bad/    # ~25 videos — forma incorrecta
-├── squat/           # ~29 videos — forma correcta
-├── squat_bad/       # ~25 videos — forma incorrecta
-├── pull Up/         # ~26 videos — forma correcta  ← directorio con espacio
-└── pull_up_bad/     # ~25 videos — forma incorrecta
+├── deadlift/        # 25 videos — forma correcta
+├── deadlift_bad/    # 26 videos — forma incorrecta
+├── squat/           # 25 videos — forma correcta
+├── squat_bad/       # 26 videos — forma incorrecta
+├── pull Up/         # 25 videos — forma correcta  ← directorio con espacio
+└── pull_up_bad/     # 25 videos — forma incorrecta
 ```
 
 ---
@@ -110,13 +110,17 @@ bash download_bad_form.sh
 | Etapa | Estado |
 |-------|--------|
 | Selección de dataset y definición del problema | ✅ Completo |
-| Diseño preliminar y arquitectura | ✅ Completo |
-| Selección de variables y características | ✅ Completo |
-| Exploración inicial de datos | ⏳ Pendiente |
-| Preparación del dataset | ⏳ Pendiente |
+| Diseño preliminar, arquitectura y metodología | ✅ Completo |
+| Trabajos relacionados (CNN, LSTM, CNN+LSTM, esqueleto) | ✅ Completo |
+| Selección de variables y características biomecánicas | ✅ Completo |
+| Descarga del dataset (forma correcta e incorrecta) | ✅ Completo |
+| Bibliografía (6 referencias académicas) | ✅ Completo |
+| Exploración inicial de datos (histogramas, heatmaps) | ⏳ Pendiente |
+| Preparación del dataset (missing values, escala vs. normalización, split) | ⏳ Pendiente |
+| Implementación del código (DataManager, DataLoader, RecognitionModel) | ⏳ Pendiente |
 | Entrenamiento y ajuste de hiperparámetros | ⏳ Pendiente |
 | Evaluación del modelo | ⏳ Pendiente |
-| Informe final | ⏳ Pendiente |
+| Informe final completo (con resultados y experimentos) | ⏳ Pendiente |
 
 ---
 

@@ -41,17 +41,23 @@ The task requires the following steps — see progress tracking below:
 |---|---|---|
 | Dataset selection & justification | ✅ Done | Kaggle workout video dataset, spatio-temporal problem framing |
 | Problem definition | ✅ Done | Binary classification of exercise execution quality |
-| Neural network selection & rationale | ✅ Done | CNN + LSTM hybrid, documented in documento_tarea.pdf |
-| Preliminary design | ✅ Done | Processing → representation → model pipeline described |
-| Detailed OOP design | ✅ Done | 3 classes: DataManager, DataLoader, RecognitionModel |
+| Neural network selection & rationale | ✅ Done | CNN + LSTM hybrid, documented in paper/main.tex |
+| Preliminary design | ✅ Done | Processing → representation → model pipeline described in paper |
+| Detailed OOP design | ✅ Done | 3 classes: DataManager, DataLoader, RecognitionModel — documented in paper §Design |
 | Variable/feature selection | ✅ Done | 33 BlazePose landmarks (x,y,z) + joint angles per exercise |
-| Bibliography | ✅ Done | 6 academic references |
+| Bibliography | ✅ Done | 6 academic references in paper/references.bib |
+| Dataset download (correct form) | ✅ Done | 25–26 videos per exercise from Kaggle |
+| Dataset download (incorrect form) | ✅ Done | 25–26 videos per exercise via download_bad_form.sh |
+| Related work section | ✅ Done | CNN, LSTM, CNN+LSTM, skeletal representation — in paper §Related |
+| Methodology section | ✅ Done | Frame extraction, structural normalization, biomechanical angles, tensors — in paper §Methodology |
+| Architecture section | ✅ Done | Conv1D + LSTM + sigmoid — in paper §Architecture |
 | Initial data exploration (histograms, heatmaps, missing data) | ❌ Pending | Required for final report |
-| Dataset preparation (missing values, scale vs normalization, train/val/test split) | ❌ Pending | Must also explain difference between scaling and normalization |
-| Model architecture with hyperparameters | ⚠️ Partial | Architecture defined; specific hyperparameters not yet set |
+| Dataset preparation (missing values, scale vs normalization, train/val/test split) | ❌ Pending | Must explain difference between scaling and normalization |
+| Implementation (DataManager, DataLoader, RecognitionModel) | ❌ Pending | No code written yet |
+| Model architecture with hyperparameters | ⚠️ Partial | Architecture defined in paper; specific hyperparameter values not yet set |
 | Training and hyperparameter tuning | ❌ Pending | |
 | Performance evaluation | ❌ Pending | |
-| Final report document | ❌ Pending | Must include all steps, decisions, and results |
+| Final report document | ⚠️ Partial | paper/main.tex has preliminary sections; results/eval sections pending |
 | AI usage report + prompt log | ❌ Pending | Required per assignment rules |
 
 ## Technical Design (from documento_tarea.pdf)
@@ -81,13 +87,17 @@ The task requires the following steps — see progress tracking below:
 
 ```
 videos/
-  deadlift/   — 32 videos (deadlift_1.mp4 … deadlift_32.mp4)
-  squat/      — 29 videos (squat_1.mp4/MOV … squat_29.mp4)
-  pull Up/    — 26 videos (pull up_1.mp4 … pull up_26.mp4)  ← directory name has a space
+  deadlift/      — 25 videos — forma correcta (deadlift_1.mp4 … deadlift_25.mp4)
+  deadlift_bad/  — 26 videos — forma incorrecta (deadlift_bad_1.mp4 …)
+  squat/         — 25 videos — forma correcta (squat_1.mp4/MOV …)
+  squat_bad/     — 26 videos — forma incorrecta (squat_bad_1.mp4 …)
+  pull Up/       — 25 videos — forma correcta (pull up_1.mp4 …)  ← espacio en nombre
+  pull_up_bad/   — 25 videos — forma incorrecta (pull_up_bad_1.mp4 …)
 ```
 
 - Formats: `.mp4` and `.MOV` (mixed, especially in `squat/`)
 - The `pull Up/` directory name contains a space — quote or escape it in shell commands and use care in Python `Path` or `glob` calls.
+- Bad-form videos were downloaded via `download_bad_form.sh` using `yt-dlp` from YouTube searches.
 
 ## Key Paths
 
