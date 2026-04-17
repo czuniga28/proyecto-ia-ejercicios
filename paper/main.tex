@@ -1,0 +1,458 @@
+%% ============================================================
+%%  Reconocimiento de la Ejecución Biomecánica de Ejercicios
+%%  mediante una Arquitectura Híbrida CNN-LSTM
+%%  IEEE Conference Format — IEEEtran
+%% ============================================================
+\documentclass[conference]{IEEEtran}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{cite}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{float}
+\usepackage{array}
+
+% ── Metadatos del documento ───────────────────────────────────
+\hypersetup{
+  pdftitle={Reconocimiento de la Ejecución Biomecánica de Ejercicios
+            mediante una Arquitectura Híbrida CNN-LSTM},
+  pdfauthor={Christopher Zúñiga, Adrian Arrieta Orozco},
+  pdfkeywords={CNN, LSTM, biomecánica, reconocimiento de ejercicios,
+               MediaPipe, aprendizaje profundo},
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=blue
+}
+
+% =============================================================
+\begin{document}
+
+% ── Título y autores ─────────────────────────────────────────
+\title{Reconocimiento Computacional de la Ejecución Biomecánica
+       de Ejercicios Mediante una Arquitectura Híbrida CNN-LSTM}
+
+\author{
+  \IEEEauthorblockN{Christopher Zúñiga}
+  \IEEEauthorblockA{
+    Escuela de Ciencias de la Computación e Informática\\
+    Universidad de Costa Rica\\
+    San José, Costa Rica\\
+    \texttt{c.zuniga@ucr.ac.cr}
+  }
+  \and
+  \IEEEauthorblockN{Adrian Arrieta Orozco}
+  \IEEEauthorblockA{
+    Escuela de Ciencias de la Computación e Informática\\
+    Universidad de Costa Rica\\
+    San José, Costa Rica\\
+    \texttt{a.arrieta@ucr.ac.cr}
+  }
+}
+
+\maketitle
+
+% ── Abstract ─────────────────────────────────────────────────
+\begin{abstract}
+El análisis computacional del movimiento humano puede modelarse
+como un problema espacio-temporal: la dimensión espacial codifica
+la postura corporal en cada instante, mientras que la dimensión
+temporal captura la dinámica del movimiento a lo largo del tiempo.
+Este trabajo presenta el diseño de un sistema de reconocimiento
+automático de la calidad de ejecución de ejercicios de fuerza,
+clasificando la biomecánica observada como correcta o incorrecta.
+Para ello, se seleccionaron tres ejercicios —sentadilla
+(\textit{squat}), dominada (\textit{pull-up}) y peso muerto
+(\textit{deadlift})— del conjunto de datos
+\textit{Workout/Exercises Video Dataset} de Kaggle.
+La arquitectura propuesta combina una red neuronal convolucional
+(CNN) para la extracción de características espaciales por
+fotograma y una red de memoria de corto y largo plazo (LSTM) para
+modelar la evolución temporal del movimiento a lo largo de
+secuencias de 30 fotogramas. Como representación de entrada, se
+emplean los 33 puntos clave del esqueleto humano detectados
+mediante el modelo BlazePose de MediaPipe, normalizados
+estructuralmente y enriquecidos con ángulos articulares
+biomecánicos calculados mediante álgebra vectorial. El enfoque
+propuesto busca reducir la dependencia de procesamiento de imagen
+cruda, enfocándose en variables cinemáticas invariantes que
+faciliten la convergencia del modelo y su generalización en
+condiciones de grabación variables.
+\end{abstract}
+
+\begin{IEEEkeywords}
+aprendizaje profundo, biomecánica computacional, CNN-LSTM,
+MediaPipe BlazePose, reconocimiento de actividad humana,
+reconocimiento de ejercicios
+\end{IEEEkeywords}
+
+% =============================================================
+\section{Introducción}
+\label{sec:intro}
+
+El análisis del movimiento humano es una línea de investigación
+activa en visión por computadora y aprendizaje automático, con
+aplicaciones en fisioterapia de rehabilitación, entrenamiento
+deportivo de alto rendimiento, ergonomía laboral y sistemas de
+asistencia inteligente~\cite{ren2020survey}. Dentro de este
+dominio, el reconocimiento de la calidad de la ejecución de
+ejercicios físicos representa un problema con implicaciones
+directas en la prevención de lesiones biomecánicas.
+
+El análisis del movimiento puede abordarse como un problema de
+modelado espacio-temporal~\cite{ren2020survey}:
+
+\begin{itemize}
+  \item \textbf{Dimensión espacial:} posición y orientación de
+        las articulaciones del cuerpo en cada instante.
+  \item \textbf{Dimensión temporal:} dinámica y secuencia del
+        movimiento a lo largo del tiempo.
+\end{itemize}
+
+Los enfoques basados en video ofrecen una representación natural
+para capturar ambas dimensiones simultáneamente. Sin embargo, el
+procesamiento directo de píxeles demanda recursos computacionales
+elevados y puede ser sensible a variaciones de iluminación,
+ángulo de cámara y características físicas del sujeto.
+
+Una alternativa es estimar la pose del sujeto como un esqueleto
+de puntos clave (\textit{landmarks}), abstrayendo la información
+relevante antes de aplicar el modelo de clasificación. Herramientas
+como MediaPipe BlazePose~\cite{mediapipe2024} permiten extraer en
+tiempo real las coordenadas tridimensionales de 33 articulaciones
+del cuerpo humano, proporcionando una representación compacta,
+invariante a cambios de apariencia y apropiada para redes
+neuronales secuenciales.
+
+Este trabajo propone una arquitectura híbrida CNN-LSTM entrenada
+sobre secuencias de landmarks y ángulos articulares para clasificar
+la biomecánica de tres ejercicios de fuerza: \textit{squat},
+\textit{pull-up} y \textit{deadlift}. La clasificación binaria
+(ejecución correcta vs.\ incorrecta) permite un enfoque simplificado
+que facilita la obtención de datos etiquetados y la evaluación
+objetiva del modelo.
+
+El resto del artículo se organiza como sigue: la
+Sección~\ref{sec:related} presenta los trabajos relacionados;
+la Sección~\ref{sec:dataset} describe el conjunto de datos y la
+formulación del problema; la Sección~\ref{sec:methodology} detalla
+el pipeline de procesamiento; la Sección~\ref{sec:architecture}
+especifica la arquitectura propuesta; la
+Sección~\ref{sec:design} describe el diseño orientado a objetos
+del sistema; y la Sección~\ref{sec:conclusion} concluye el trabajo
+y discute las líneas de trabajo futuro.
+
+% =============================================================
+\section{Trabajos Relacionados}
+\label{sec:related}
+
+\subsection{Redes Neuronales Convolucionales para Datos Visuales}
+
+Las redes neuronales convolucionales (CNN) se distinguen del resto
+de arquitecturas de aprendizaje profundo por su distribución
+tridimensional de neuronas, lo que las vuelve eficientes para el
+procesamiento de datos visuales. Su estructura puede describirse
+mediante tres componentes fundamentales:
+
+\begin{enumerate}
+  \item \textbf{Capa convolucional:} procesa regiones localizadas
+        de la entrada mediante filtros que extraen características
+        como bordes, texturas y patrones estructurales.
+  \item \textbf{Capa de agrupación (\textit{pooling}):} reduce las
+        dimensiones espaciales preservando la información esencial,
+        reduciendo la complejidad computacional.
+  \item \textbf{Capa completamente conectada:} clasifica las
+        características extraídas mediante propagación hacia
+        adelante y retropropagación.
+\end{enumerate}
+
+\subsection{Redes LSTM para Modelado Temporal}
+
+Las redes de memoria de corto y largo plazo (LSTM) son un tipo de
+red neuronal recurrente (RNN) diseñadas para mantener dependencias
+a largo plazo en secuencias. Cada unidad LSTM incorpora una celda
+de memoria controlada por tres compuertas~\cite{ullah2018action}:
+
+\begin{itemize}
+  \item \textbf{Compuerta de entrada (\textit{input gate}):}
+        decide cuánta información nueva se almacena en memoria.
+  \item \textbf{Compuerta de salida (\textit{output gate}):}
+        regula cuánta información se propaga a la capa siguiente.
+  \item \textbf{Compuerta de olvido (\textit{forget gate}):}
+        controla qué información previa se descarta de la memoria.
+\end{itemize}
+
+Este mecanismo permite a la LSTM modelar dependencias temporales
+de largo alcance, como la evolución progresiva de un movimiento
+a lo largo de múltiples fotogramas.
+
+\subsection{Arquitecturas Híbridas CNN-LSTM para Reconocimiento
+            de Actividad}
+
+Ullah et al.~\cite{ullah2018action} demostraron que la combinación
+de características espaciales extraídas por una CNN con el modelado
+temporal de una LSTM mejora significativamente la precisión en el
+reconocimiento de acciones en secuencias de video. En esta
+arquitectura, la CNN actúa como extractor de características por
+fotograma, y la LSTM modela la secuencia de vectores resultantes
+para capturar la dinámica del movimiento.
+
+Esta combinación resulta especialmente apropiada para el análisis
+biomecánico, donde la postura en un instante aislado es insuficiente
+para evaluar la calidad del movimiento: se requiere analizar cómo
+las articulaciones se desplazan y coordinan a lo largo del tiempo.
+
+\subsection{Representación Esqueletal y Análisis Biomecánico}
+
+Ren et al.~\cite{ren2020survey} validan protocolos de
+preprocesamiento esenciales para el reconocimiento de acción
+basado en esqueleto, incluyendo la normalización por traslación
+centrada en la cadera (\textit{hip-center translation}) y el
+escalado por longitud de torso para lograr invariancia espacial.
+Winter~\cite{winter2009biomechanics} establece que el análisis del
+movimiento humano debe fundamentarse en vectores de fuerza y
+ángulos articulares, lo que justifica la ingeniería de
+características biomecánicas como etapa de preprocesamiento.
+Zhou et al.~\cite{zhou2019continuity} respaldan el uso de
+representaciones basadas en ángulos y rotaciones para mejorar la
+eficiencia del aprendizaje en arquitecturas de aprendizaje profundo.
+
+% =============================================================
+\section{Conjunto de Datos y Formulación del Problema}
+\label{sec:dataset}
+
+\subsection{Conjunto de Datos}
+
+El conjunto de datos seleccionado es el \textit{Workout/Exercises
+Video Dataset}~\cite{kaggle_dataset}, disponible en Kaggle. Este
+dataset contiene aproximadamente 652 videos distribuidos en 25
+categorías de ejercicio. Para el presente trabajo se seleccionaron
+tres categorías:
+
+\begin{table}[htbp]
+  \caption{Distribución del subconjunto de datos utilizado}
+  \label{tab:dataset}
+  \centering
+  \begin{tabular}{lcc}
+    \toprule
+    \textbf{Ejercicio} & \textbf{Videos disponibles} & \textbf{Formato} \\
+    \midrule
+    Deadlift  & 32 & .mp4 \\
+    Squat     & 29 & .mp4 / .MOV \\
+    Pull-up   & 26 & .mp4 \\
+    \midrule
+    \textbf{Total} & \textbf{87} & — \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Formulación del Problema}
+
+El problema se formula como una clasificación binaria. Dado un
+video $V$ que contiene la ejecución de uno de los tres ejercicios,
+el objetivo del modelo es determinar si la biomecánica del
+movimiento observado corresponde a una ejecución correcta o
+incorrecta:
+
+\begin{equation}
+  \hat{y} = f(X_{1:T}), \quad \hat{y} \in \{0, 1\}
+  \label{eq:problem}
+\end{equation}
+
+donde $X_{1:T}$ representa la secuencia de características
+extraídas sobre $T = 30$ fotogramas del video, y $\hat{y} = 1$
+corresponde a ejecución correcta.
+
+La reducción a tres ejercicios específicos y la formulación binaria
+del problema persiguen aumentar la precisión del modelo al
+enfocarse en los patrones biomecánicos particulares de cada
+movimiento, en lugar de abordar un problema de clasificación
+multi-ejercicio de mayor complejidad.
+
+% =============================================================
+\section{Metodología de Procesamiento de Datos}
+\label{sec:methodology}
+
+\subsection{Extracción de Fotogramas y Detección de Landmarks}
+
+Para cada video del conjunto de datos, se extrae una secuencia
+fija de $T = 30$ fotogramas mediante muestreo uniforme a lo largo
+de la duración del video. Sobre cada fotograma se aplica el modelo
+BlazePose de MediaPipe~\cite{mediapipe2024}, el cual detecta 33
+puntos clave (\textit{landmarks}) del cuerpo humano con sus
+coordenadas tridimensionales $(x, y, z)$.
+
+\subsection{Normalización Estructural}
+
+Para que el modelo sea invariante a la distancia de la cámara y
+a la constitución física del sujeto, se aplica una normalización
+estructural en dos pasos~\cite{ren2020survey}:
+
+\begin{enumerate}
+  \item \textbf{Traslación:} los landmarks se traducen para que la
+        cadera (\textit{hip-center}) quede en el origen del
+        sistema de coordenadas.
+  \item \textbf{Escalado:} las coordenadas se normalizan por la
+        longitud del torso del sujeto, eliminando la dependencia
+        de la escala corporal.
+\end{enumerate}
+
+\subsection{Ingeniería de Características Biomecánicas}
+
+Las coordenadas de los landmarks se complementan con ángulos
+articulares relevantes para cada ejercicio. El ángulo $\theta$
+entre dos segmentos óseos representados como vectores $\mathbf{A}$
+y $\mathbf{B}$ se calcula mediante el producto punto de sus
+vectores unitarios~\cite{winter2009biomechanics, zhou2019continuity}:
+
+\begin{equation}
+  \theta = \arccos\!\left(\frac{\mathbf{A} \cdot \mathbf{B}}
+           {\|\mathbf{A}\| \, \|\mathbf{B}\|}\right)
+  \label{eq:angle}
+\end{equation}
+
+Complementariamente, se emplea la ley del coseno para derivar
+ángulos internos en triángulos formados por tres articulaciones.
+Los ángulos articulares calculados por ejercicio incluyen:
+
+\begin{itemize}
+  \item \textbf{Squat:} ángulo de rodilla y de cadera.
+  \item \textbf{Pull-up:} ángulo de codo y de hombro.
+  \item \textbf{Deadlift:} ángulo de cadera, rodilla y columna
+        lumbar (estimada).
+\end{itemize}
+
+Este enfoque de ingeniería de características reduce la
+dimensionalidad de los datos de entrada, elimina redundancias
+espaciales y permite que la red neuronal converja sobre variables
+biomecánicas invariantes~\cite{zhou2019continuity}.
+
+\subsection{Representación como Tensores}
+
+Los datos procesados se organizan en tensores de la
+forma~\cite{w3schools_tensor}:
+
+\begin{equation}
+  \mathbf{X} \in \mathbb{R}^{B \times T \times F}
+  \label{eq:tensor}
+\end{equation}
+
+donde $B$ es el tamaño del lote (\textit{batch}), $T = 30$ es el
+número de fotogramas y $F$ es la dimensión de características por
+fotograma, compuesta por las coordenadas $(x, y, z)$ de los 33
+landmarks más los ángulos biomecánicos calculados.
+
+Para evitar sesgos en el entrenamiento, se aplica balanceo de
+clases garantizando que cada lote contenga la misma proporción
+de ejecuciones correctas e incorrectas.
+
+% =============================================================
+\section{Arquitectura del Modelo}
+\label{sec:architecture}
+
+Se propone una arquitectura híbrida CNN-LSTM que procesa la
+dinámica espacio-temporal del movimiento en dos etapas, como
+se ilustra a continuación.
+
+\subsection{Extracción Espacial mediante CNN}
+
+Se aplican capas convolucionales de una dimensión (Conv1D) sobre
+el vector de características de cada fotograma. Su función es
+detectar patrones locales de postura, como la alineación de la
+espalda o la profundidad del movimiento. Cada capa convolucional
+extrae un vector de características comprimido por fotograma.
+
+\subsection{Análisis Temporal mediante LSTM}
+
+Los vectores de características obtenidos por la CNN en cada
+fotograma se organizan en una secuencia temporal y se inyectan
+en una red LSTM. Las celdas de memoria y compuertas de la LSTM
+identifican la evolución del ejercicio a lo largo de los 30
+fotogramas, detectando anomalías en la velocidad, profundidad
+o ritmo de ejecución.
+
+\subsection{Clasificación Final}
+
+Una capa densa completamente conectada con activación sigmoide
+genera una probabilidad $p \in [0, 1]$ de ejecución correcta,
+donde:
+
+\begin{equation}
+  \hat{y} =
+  \begin{cases}
+    1 & \text{si } p \geq 0.5 \quad \text{(ejecución correcta)} \\
+    0 & \text{si } p < 0.5  \quad \text{(ejecución incorrecta)}
+  \end{cases}
+  \label{eq:decision}
+\end{equation}
+
+% =============================================================
+\section{Diseño del Sistema}
+\label{sec:design}
+
+Para gestionar la complejidad del pipeline y mantener separación
+de responsabilidades, el sistema se implementa mediante una
+arquitectura orientada a objetos con tres módulos principales:
+
+\begin{itemize}
+  \item \textbf{DataManager:} transforma los videos crudos en
+        flujos de datos estructurados. Encapsula la extracción
+        de landmarks con MediaPipe, la normalización estructural
+        y el cálculo de ángulos articulares.
+
+  \item \textbf{DataLoader:} actúa como puente entre los datos
+        procesados y la red neuronal. Organiza los datos en
+        tensores, aplica el balanceo de clases y entrega lotes
+        normalizados y equitativos durante el entrenamiento.
+
+  \item \textbf{RecognitionModel:} define la arquitectura
+        CNN-LSTM, gestiona el entrenamiento, el ajuste de
+        hiperparámetros y la evaluación del rendimiento.
+\end{itemize}
+
+Esta separación permite modificar cualquier etapa del pipeline
+de forma independiente, facilitando la experimentación con
+diferentes configuraciones de arquitectura o estrategias de
+preprocesamiento.
+
+% =============================================================
+\section{Conclusión y Trabajo Futuro}
+\label{sec:conclusion}
+
+Este trabajo presenta el diseño de un sistema de reconocimiento
+automático de la calidad de ejecución biomecánica de ejercicios
+de fuerza, fundamentado en una arquitectura híbrida CNN-LSTM y
+en la extracción de representaciones esqueletales mediante
+MediaPipe BlazePose. La formulación del problema como
+clasificación binaria, combinada con la normalización estructural
+y la ingeniería de características biomecánicas, proporciona
+una base sólida para el entrenamiento de un modelo generalizable
+a condiciones de grabación variables.
+
+Como trabajo futuro, se contempla la recolección y etiquetado
+de datos de ejecución correcta e incorrecta, la implementación
+completa del pipeline de preprocesamiento, el entrenamiento y
+ajuste de hiperparámetros del modelo, y la evaluación de su
+rendimiento mediante métricas estándar de clasificación
+(\textit{accuracy}, precisión, recall, F1-score) y matrices
+de confusión por clase.
+
+% =============================================================
+\section*{Reconocimientos}
+
+Los autores agradecen al personal docente del curso de
+Inteligencia Artificial, Ciclo IV, de la Universidad de Costa
+Rica por la orientación brindada durante el desarrollo de este
+proyecto.
+
+% =============================================================
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

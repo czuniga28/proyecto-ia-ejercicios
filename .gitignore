@@ -1,0 +1,59 @@
+# Videos del dataset (5+ GB — no se suben al repositorio)
+videos/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Modelos entrenados (artefactos pesados)
+*.pt
+*.pth
+*.h5
+*.keras
+*.ckpt
+checkpoints/
+saved_models/
+
+# Datos procesados / artefactos intermedios
+data/processed/
+*.npy
+*.npz
+*.pkl
+*.pickle
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Claude Code (interno)
+.claude/
+
+# Logs
+*.log
+logs/
+runs/
