@@ -1,5 +1,7 @@
 # Videos del dataset (5+ GB — no se suben al repositorio)
 videos/
+videos.zip
+dataset_limpio/
 
 # macOS
 .DS_Store
