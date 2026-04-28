@@ -333,6 +333,186 @@ dimensionalidad de los datos de entrada, elimina redundancias
 espaciales y permite que la red neuronal converja sobre variables
 biomecánicas invariantes~\cite{zhou2019continuity}.
 
+\subsection{Exploración Inicial de Datos}
+\label{subsec:exploration}
+
+Se realizó un análisis exploratorio sobre el dataset de landmarks
+con el objetivo de verificar que las características extraídas
+permiten discriminar entre ejecución correcta e incorrecta antes
+de entrenar el modelo.
+
+\subsubsection{Distribución de coordenadas clave}
+
+Para cada ejercicio se seleccionó el landmark cuya coordenada $Y$
+(posición vertical en imagen, donde $Y=0$ es la parte superior
+e $Y=1$ la inferior) resulta más informativa biomecánicamente:
+cadera izquierda (landmark 23) para \textit{deadlift}, hombro
+izquierdo (landmark 11) para \textit{pull-up}, y rodilla
+izquierda (landmark 25) para \textit{squat}.
+
+La Tabla~\ref{tab:landmarks_stats} resume las estadísticas
+descriptivas de dichos landmarks por clase. El \textit{squat}
+muestra la mayor separación: la rodilla correcta tiene una mediana
+de $Y=0.732$ frente a $Y=0.578$ en la incorrecta, reflejando
+que la sentadilla correcta alcanza mayor profundidad. El
+\textit{pull-up} correcto presenta mayor desviación estándar
+($\sigma=0.176$ vs $\sigma=0.100$), lo que indica que recorre
+un rango de movimiento más amplio. El \textit{deadlift} muestra
+la menor diferencia entre clases ($\Delta\text{mediana}\approx0.036$),
+lo que sugiere que su discriminación depende más del ángulo
+de la columna que de la posición vertical de las articulaciones.
+
+\begin{table}[htbp]
+  \caption{Estadísticas del landmark clave por ejercicio y forma}
+  \label{tab:landmarks_stats}
+  \centering
+  \begin{tabular}{llccc}
+    \toprule
+    \textbf{Ejercicio} & \textbf{Forma} & \textbf{Media} & \textbf{$\sigma$} & \textbf{Mediana} \\
+    \midrule
+    Deadlift (y23)  & Correcta   & 0.492 & 0.071 & 0.490 \\
+                    & Incorrecta & 0.515 & 0.107 & 0.526 \\
+    \midrule
+    Pull-up (y11)   & Correcta   & 0.430 & 0.176 & 0.397 \\
+                    & Incorrecta & 0.366 & 0.100 & 0.355 \\
+    \midrule
+    Squat (y25)     & Correcta   & 0.720 & 0.165 & 0.732 \\
+                    & Incorrecta & 0.579 & 0.088 & 0.578 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsubsection{Análisis de correlación entre articulaciones}
+
+Se calculó la correlación de Pearson entre las coordenadas $Y$
+de cuatro landmarks clave — hombro (11), cadera (23), rodilla (25)
+y tobillo (27) — para cada combinación de ejercicio y forma. La
+correlación cadera-rodilla resultó especialmente discriminante
+para el \textit{squat}: la ejecución correcta presenta una
+correlación de $r=0.841$ frente a $r=0.688$ en la incorrecta
+($\Delta=+0.153$). Esta diferencia tiene interpretación
+biomecánica directa: en un squat correcto, cadera y rodilla
+se flexionan y extienden de forma coordinada; en mala forma,
+esa sincronización se pierde. Para \textit{deadlift} y
+\textit{pull-up} el patrón se invierte: la ejecución incorrecta
+presenta mayor correlación ($\Delta=-0.127$ y $\Delta=-0.101$
+respectivamente), lo que sugiere un movimiento más rígido y
+menos articulado en la mala forma.
+
+\subsubsection{Proxies de ángulos articulares}
+
+Como aproximación previa al cálculo formal de ángulos
+articulares, se construyeron proxies basados en distancias
+verticales entre articulaciones: $|Y_{rodilla}-Y_{cadera}|$
+para \textit{squat}, $|Y_{codo}-Y_{hombro}|$ para \textit{pull-up},
+y $|Y_{hombro}-Y_{cadera}|$ para \textit{deadlift}. Las medianas
+de los proxies articulares se muestran en la
+Tabla~\ref{tab:proxies}.
+
+\begin{table}[htbp]
+  \caption{Medianas de los proxies articulares por forma}
+  \label{tab:proxies}
+  \centering
+  \begin{tabular}{lccc}
+    \toprule
+    \textbf{Ejercicio} & \textbf{Correcta} & \textbf{Incorrecta} & \textbf{$\Delta$} \\
+    \midrule
+    Squat (prof. rodilla)    & 0.132 & 0.089 & +0.044 \\
+    Pull-up (ext. brazo)     & 0.088 & 0.042 & +0.045 \\
+    Deadlift (incl. tronco)  & 0.181 & 0.185 & $-$0.004 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+El \textit{squat} y el \textit{pull-up} muestran diferencias
+sustanciales: la ejecución correcta alcanza mayor profundidad
+de rodilla y mayor extensión de brazo respectivamente. El
+\textit{deadlift} no presenta diferencia apreciable en este
+proxy, confirmando que su discriminación requiere el ángulo
+real de columna que se calculará en la etapa de ingeniería
+de características.
+
+\subsection{Análisis de Calidad y Pipeline Alternativo para Squat Incorrecto}
+
+Durante la extracción inicial de landmarks se detectó que la tasa
+de detección de MediaPipe varía significativamente entre clases.
+La Tabla~\ref{tab:detection} muestra los resultados sobre los 150
+videos normalizados del conjunto de datos.
+
+\begin{table}[htbp]
+  \caption{Tasa de detección de landmarks por clase (pipeline estándar)}
+  \label{tab:detection}
+  \centering
+  \begin{tabular}{llcc}
+    \toprule
+    \textbf{Ejercicio} & \textbf{Forma} & \textbf{Frames detectados} & \textbf{\%} \\
+    \midrule
+    Deadlift  & Correcta   & 747 / 750 & 99.6\% \\
+    Deadlift  & Incorrecta & 585 / 750 & 78.0\% \\
+    Pull-up   & Correcta   & 666 / 750 & 88.8\% \\
+    Pull-up   & Incorrecta & 608 / 750 & 81.1\% \\
+    Squat     & Correcta   & 732 / 750 & 97.6\% \\
+    Squat     & Incorrecta & 279 / 750 & 37.2\% \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+La clase \textit{squat} incorrecta presentó una tasa de detección
+de apenas 37.2\%, con 16 de 25 videos con menos de 15 frames
+detectados. El análisis identificó dos causas:
+
+\begin{enumerate}
+  \item \textbf{Selección de segmento sobre frames no detectables:}
+        el algoritmo de normalización seleccionaba el segmento de
+        mayor movimiento sobre la totalidad del video, incluyendo
+        frames donde el sujeto no era visible o la pose era extrema.
+        En videos de larga duración ($>$60 segundos) esto provocaba
+        que el segmento extraído coincidiera con zonas fuera del
+        rango de BlazePose.
+  \item \textbf{Degradación por compresión de video:} un intento
+        de re-normalización con selección MediaPipe-first (escanear
+        frames válidos antes de elegir el segmento) tampoco mejoró
+        la tasa de detección, porque al escribir los frames
+        seleccionados a un archivo \texttt{.mp4} con el codec
+        \texttt{mp4v} y volver a leerlos, la compresión introducía
+        artefactos suficientes para que BlazePose fallara en frames
+        que eran detectables en el video original sin comprimir.
+\end{enumerate}
+
+Dado que ambos intentos fallaron, se adoptó un \textbf{pipeline
+alternativo exclusivo para la clase \textit{squat} incorrecto} que
+elimina la etapa de video normalizado como intermediario:
+
+\begin{enumerate}
+  \item Escanear todos los frames del video \textbf{original} con
+        MediaPipe y conservar los índices donde se detectó pose
+        exitosamente, junto con sus landmarks ya extraídos.
+  \item Descartar videos con menos de $N_{min} = 15$ frames
+        válidos.
+  \item Calcular la señal de movimiento exclusivamente sobre los
+        frames válidos y encontrar el segmento de mayor actividad
+        biomecánica.
+  \item Muestrear 30 índices del segmento y almacenar directamente
+        los landmarks correspondientes en el dataset, sin reescribir
+        ni releer ningún archivo de video.
+  \item Aumentar en \textbf{espacio de landmarks} mediante reflejo
+        horizontal: $x_i \leftarrow 1 - x_i$ para cada landmark,
+        con intercambio de pares izquierda$\leftrightarrow$derecha
+        según la convención BlazePose.
+\end{enumerate}
+
+Este enfoque garantiza detección del 100\% en los datos almacenados,
+ya que los landmarks se extraen en el mismo instante en que MediaPipe
+confirma la detección, sin pasos intermedios de compresión. Cabe
+señalar que la aumentación por ajuste de brillo, aplicada al resto
+de clases en espacio de píxeles, se omite aquí deliberadamente:
+modificar el brillo no altera las coordenadas de los landmarks y
+por tanto no aporta variabilidad al modelo. El reflejo horizontal
+sí constituye una aumentación semánticamente válida, pues refleja
+la ejecución del ejercicio en sentido contrario. Con los 10 videos
+originales y su versión en espejo se obtienen 600 filas en el
+dataset para esta clase (20 secuencias $\times$ 30 frames).
+
 \subsection{Representación como Tensores}
 
 Los datos procesados se organizan en tensores de la
