@@ -51,13 +51,13 @@ The task requires the following steps — see progress tracking below:
 | Related work section | ✅ Done | CNN, LSTM, CNN+LSTM, skeletal representation — in paper §Related |
 | Methodology section | ✅ Done | Frame extraction, structural normalization, biomechanical angles, tensors — in paper §Methodology |
 | Architecture section | ✅ Done | Conv1D + LSTM + sigmoid — in paper §Architecture |
-| Initial data exploration (histograms, heatmaps, missing data) | ❌ Pending | Required for final report |
-| Dataset preparation (missing values, scale vs normalization, train/val/test split) | ❌ Pending | Must explain difference between scaling and normalization |
-| Implementation (DataManager, DataLoader, RecognitionModel) | ❌ Pending | No code written yet |
+| Initial data exploration (histograms, heatmaps, missing data) | ✅ Done | Notebook + paper §4.4: landmark distributions, correlation heatmaps, joint proxies, squat_bad quality analysis |
+| Dataset preparation (missing values, scale vs normalization, train/val/test split) | ❌ Pending | Must add paper section explaining scale vs normalization; document split strategy and missing-frame handling |
+| Implementation (DataManager, DataLoader, RecognitionModel) | ❌ Pending | Formal OOP classes not yet written; poc/modelo_prototipo.py exists as throwaway prototype only |
 | Model architecture with hyperparameters | ⚠️ Partial | Architecture defined in paper; specific hyperparameter values not yet set |
 | Training and hyperparameter tuning | ❌ Pending | |
 | Performance evaluation | ❌ Pending | |
-| Final report document | ⚠️ Partial | paper/main.tex has preliminary sections; results/eval sections pending |
+| Final report document | ⚠️ Partial | paper/main.tex has §1–6 (intro, related, dataset, methodology, architecture, design); missing §preparation, §results, §evaluation |
 | AI usage report + prompt log | ❌ Pending | Required per assignment rules |
 
 ## Technical Design (from documento_tarea.pdf)
@@ -114,3 +114,17 @@ videos/
 - **NumPy** — tensor operations, angle calculations
 - **PyTorch** or **Keras** — CNN+LSTM model
 - **Jupyter notebooks** (`.ipynb`) — exploration and reporting
+
+## Agent skills
+
+### Issue tracker
+
+Issues live as local markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role vocabulary (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context repo — one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.

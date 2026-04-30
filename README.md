@@ -115,7 +115,7 @@ bash download_bad_form.sh
 | Selección de variables y características biomecánicas | ✅ Completo |
 | Descarga del dataset (forma correcta e incorrecta) | ✅ Completo |
 | Bibliografía (6 referencias académicas) | ✅ Completo |
-| Exploración inicial de datos (histogramas, heatmaps) | ⏳ Pendiente |
+| Exploración inicial de datos (histogramas, heatmaps) | ✅ Completo |
 | Preparación del dataset (missing values, escala vs. normalización, split) | ⏳ Pendiente |
 | Implementación del código (DataManager, DataLoader, RecognitionModel) | ⏳ Pendiente |
 | Entrenamiento y ajuste de hiperparámetros | ⏳ Pendiente |
