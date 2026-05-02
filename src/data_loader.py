@@ -26,7 +26,10 @@ _FEATURE_COLS = _COORD_COLS + _ANGLE_COLS   # 108 features por frame
 class _ExerciseDataset(Dataset):
     """Dataset de PyTorch que envuelve tensores de video."""
 
+    # X: np.ndarray que representa las características de los frames (p. ej., coordenadas y ángulos) de los videos.
+    # y: np.ndarray que representa las etiquetas correspondientes (0 o 1, indicando si el ejercicio se hizo correctamente o no).
     def __init__(self, X: np.ndarray, y: np.ndarray):
+        # Conversión de los datos de entrada X y y a tensores de PyTorch. 
         self.X = torch.tensor(X, dtype=torch.float32)   # [N, 30, 108]
         self.y = torch.tensor(y, dtype=torch.float32)   # [N]
 
@@ -132,11 +135,15 @@ class DataLoader:
         """Agrupa el DataFrame por video y construye un tensor [30, 108] por video."""
         result: dict[str, dict] = {}
         for vid_name, grp in df.groupby('video_name', sort=False):
+            # Frames ordenados por frame_index
             grp   = grp.sort_values('frame_index')
+            # Matrix 30x108 de datos numericos 
             X_vid = grp[_FEATURE_COLS].values.astype(np.float32)
 
+            # Si hay mas de 30 frames, se toman los primeros 30
             if len(X_vid) > self.FRAMES:
                 X_vid = X_vid[:self.FRAMES]
+            # Si hay menos de 30 frames, se rellenan con el ultimo frame
             while len(X_vid) < self.FRAMES:
                 X_vid = np.vstack([X_vid, X_vid[-1:]])
 

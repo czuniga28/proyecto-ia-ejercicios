@@ -53,11 +53,12 @@ The task requires the following steps — see progress tracking below:
 | Architecture section | ✅ Done | Conv1D + LSTM + sigmoid — in paper §Architecture |
 | Initial data exploration (histograms, heatmaps, missing data) | ✅ Done | Notebook + paper §4.4: landmark distributions, correlation heatmaps, joint proxies, squat_bad quality analysis |
 | Dataset preparation (missing values, scale vs normalization, train/val/test split) | ⚠️ Partial | Code done (DataLoader: stratified video-level split 70/15/15, StandardScaler train-only, forward-fill for missing frames); paper section still needed |
-| Implementation (DataManager, DataLoader, RecognitionModel) | ⚠️ Partial | DataManager ✅ src/data_manager.py — DataLoader ✅ src/data_loader.py — RecognitionModel ❌ pending |
-| Model architecture with hyperparameters | ⚠️ Partial | Architecture defined in paper; hyperparameter values (conv_filters, lstm_units, dropout, lr) to be set in RecognitionModel |
+| Implementation (DataManager, DataLoader, RecognitionModel) | ⚠️ Partial | DataManager ✅ src/data_manager.py — DataLoader ✅ src/data_loader.py — RecognitionModel ⚠️ src/recognition_model.py (CNNLSTMClassifier completo + __init__ + train_model; falta evaluate + save/load) |
+| Model architecture with hyperparameters | ⚠️ Partial | Architecture + hiperparámetros definidos en código (conv_filters=64, lstm_units=128, lstm_layers=2, dropout=0.3, lr=1e-3); pendiente documentar en paper |
+| Generar CSV de landmarks | ❌ Pending | Correr DataManager.extract_from_videos() → data/pose_landmarks_normalized.csv |
 | Training and hyperparameter tuning | ❌ Pending | |
 | Performance evaluation | ❌ Pending | |
-| Final report document | ⚠️ Partial | paper/main.tex has §1–6 (intro, related, dataset, methodology, architecture, design); missing §preparation, §results, §evaluation |
+| Final report document | ⚠️ Partial | paper/main.tex tiene §1–6; faltan §preparación (normalización vs escalado, split), §hiperparámetros, §resultados, §evaluación |
 | AI usage report + prompt log | ❌ Pending | Required per assignment rules |
 
 ## Technical Design (from documento_tarea.pdf)
