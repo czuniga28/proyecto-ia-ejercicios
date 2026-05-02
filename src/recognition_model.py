@@ -172,7 +172,7 @@ class RecognitionModel:
             dropout      = dropout,
         ).to(self.device)
 
-        # BCELoss: pérdida estándar para clasificación binaria con salida sigmoide
+        # BCELoss: funcion de perdida para calcular la diferencia entre la probabilidad predicha y la etiqueta real de forma binaria
         self.criterion = nn.BCELoss()
 
         # Adam: optimizador adaptativo — ajusta el lr por parámetro durante el entrenamiento
@@ -233,6 +233,7 @@ class RecognitionModel:
             running_val_loss = 0.0
 
             # torch.no_grad() evita calcular gradientes — ahorra memoria y tiempo
+            # Apaga el registro de aprendizaje de pytorch
             with torch.no_grad():
                 for batch_frames, batch_labels in val_loader:
                     batch_frames = batch_frames.to(self.device)
@@ -266,9 +267,10 @@ class RecognitionModel:
         self.model.load_state_dict(torch.load('_best_weights.pt', weights_only=True))
         return history
 
-    def evaluate(self, test_loader: TorchDataLoader) -> dict:
+    def evaluate(self, test_loader: TorchDataLoader, threshold: float = 0.5) -> dict:
         """
         Evalúa el modelo sobre el test set.
+        threshold: umbral de decisión (prob >= threshold → correcto). Default 0.5.
         Devuelve métricas: accuracy, f1, precision, recall y confusion matrix.
         """
         self.model.eval()
@@ -284,9 +286,9 @@ class RecognitionModel:
                 # Probabilidades de salida: [B, 1]
                 probabilities = self.model(batch_frames)
 
-                # Convertir probabilidades a clases binarias con umbral 0.5
+                # Convertir probabilidades a clases binarias con el umbral dado
                 # squeeze(1): [B, 1] → [B] para comparar con batch_labels
-                predicted_classes = (probabilities.squeeze(1) >= 0.5).long().cpu().numpy()
+                predicted_classes = (probabilities.squeeze(1) >= threshold).long().cpu().numpy()
                 true_labels       = batch_labels.long().numpy()
 
                 all_predictions.extend(predicted_classes)
@@ -301,7 +303,7 @@ class RecognitionModel:
             'confusion_matrix': confusion_matrix(all_labels, all_predictions),
         }
 
-        print("\n── Resultados en test set ──────────────────────────")
+        print(f"\n── Resultados en test set (umbral={threshold}) ─────────────────────")
         print(f"  Accuracy  : {metrics['accuracy']:.4f}")
         print(f"  F1        : {metrics['f1']:.4f}")
         print(f"  Precision : {metrics['precision']:.4f}")
