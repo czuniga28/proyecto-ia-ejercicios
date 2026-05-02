@@ -68,18 +68,25 @@ class DataManager:
         VisionRunningMode     = mp.tasks.vision.RunningMode
 
         options = PoseLandmarkerOptions(
-            base_options=BaseOptions(model_asset_path=self.model_path),
-            running_mode=VisionRunningMode.IMAGE,
+            base_options=BaseOptions(model_asset_path=self.model_path), # Ruta del modelo
+            running_mode=VisionRunningMode.IMAGE, # Modo de ejecución por imagen
         )
 
-        all_rows: list[dict] = []
-        with PoseLandmarker.create_from_options(options) as landmarker:
+        all_rows: list[dict] = [] # Lista para almacenar las filas del CSV
+        
+        # Iniciar modelo de IA (Blazepose) con manejador de contexto
+        with PoseLandmarker.create_from_options(options) as landmarker: 
             for folder_name, exercise, label in _CLASSES:
                 folder = self.dataset_dir / folder_name
+                # Ordenar videos para tener determinismo en el procesamiento
                 videos = sorted(
+                    # List comprehension: itera sobre todos los archivos en la carpeta y se queda con los que tengan extensión de video permitida
                     [f for f in folder.iterdir() if f.suffix.lower() in _VIDEO_EXT],
+                    # Regla de ordenamiento: minusculas (lambda p es una funcion desechable que recibe como parametro p)
                     key=lambda p: p.name.lower(),
                 )
+
+                # flag para usar pipeline alternativo para squat_bad
                 use_alt = folder_name == 'squat_bad'
                 print(f"\n▶ {folder_name}  ({len(videos)} videos)  label={label}")
 
@@ -121,39 +128,45 @@ class DataManager:
     def _process_standard(
         self, vid_path: Path, exercise: str, label: str, landmarker
     ) -> list[dict]:
-        """Muestreo uniforme de FRAMES fotogramas; forward-fill en fallos de detección."""
+        """
+        Lee todos los frames del video (ya recortado a ~30 en dataset_limpio)
+        y aplica MediaPipe a cada uno; forward-fill en fallos de detección.
+        """
         cap = cv2.VideoCapture(str(vid_path))
         if not cap.isOpened():
             return []
 
-        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        if total < 1:
-            cap.release()
-            return []
-
-        indices = np.linspace(0, total - 1, self.FRAMES, dtype=int)
-        idx_set = set(indices.tolist())
-        frames_data: dict[int, np.ndarray] = {}
-
-        fi = 0
+        raw_frames: list[np.ndarray | None] = []
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
                 break
-            if fi in idx_set:
-                lm = self._detect(frame, landmarker)
-                if lm is not None:
-                    frames_data[fi] = lm
-            fi += 1
+            raw_frames.append(self._detect(frame, landmarker))
         cap.release()
 
-        if len(frames_data) < self.MIN_VALID:
+        detected = [lm for lm in raw_frames if lm is not None]
+        if len(detected) < self.MIN_VALID:
             return []
 
-        sequence = self._forward_fill(indices, frames_data)
+        # Forward-fill y recortar/rellenar hasta exactamente FRAMES
+        sequence: list[np.ndarray] = []
+        last: np.ndarray | None = None
+        for lm in raw_frames:
+            if lm is not None:
+                last = lm # se guarda el ultimo frame detectado
+            # si no se detecta un frame, se guarda el ultimo detectado
+            sequence.append(last if last is not None
+                            else np.zeros((self.N_LANDMARKS, 3), dtype=np.float32))
+
+        # Ajustar a FRAMES: recortar si sobra, repetir último si falta
+        if len(sequence) > self.FRAMES:
+            sequence = sequence[:self.FRAMES]
+        while len(sequence) < self.FRAMES:
+            sequence.append(sequence[-1].copy())
+
         return [
-            self._build_row(vid_path.name, exercise, label, i, lm)
-            for i, lm in enumerate(sequence)
+            self._build_row(vid_path.name, exercise, label, frame_index, lm)
+            for frame_index, lm in enumerate(sequence)
         ]
 
     def _process_squat_bad(
@@ -169,9 +182,12 @@ class DataManager:
         if not cap.isOpened():
             return []
 
+        # Lista de arreglos numpy con keypoints
         valid: list[np.ndarray] = []
         while cap.isOpened():
-            ret, frame = cap.read()
+            # ret = bool indicando si la lectura fue ok o no
+            # frame = frame en BGR
+            ret, frame = cap.read() 
             if not ret:
                 break
             lm = self._detect(frame, landmarker)
@@ -205,10 +221,13 @@ class DataManager:
         Traslación al centro de cadera + escalado por longitud de torso.
         lm: [33, 3] en espacio de imagen  →  [33, 3] normalizado.
         """
+        # dividir puntos de la cadera entre 2 para encontrar el centro de gravedad de la persona
         hip_center = (lm[23] + lm[24]) / 2.0
         lm_t = lm - hip_center
 
+        # dividir puntos de los hombros entre 2 para encontrar el centro de los hombros
         shoulder_center = (lm_t[11] + lm_t[12]) / 2.0
+        # calcular la distancia entre los hombros y la cadera
         torso_len = float(np.linalg.norm(shoulder_center))
         if torso_len < 1e-6:
             torso_len = 1.0
@@ -221,15 +240,23 @@ class DataManager:
         Calcula 9 ángulos articulares (radianes) sobre landmarks normalizados.
         lm: [33, 3]  →  [9]
         """
-        def ang(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> float:
-            ba = a - b
-            bc = c - b
-            cos = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-8)
-            return float(np.arccos(np.clip(cos, -1.0, 1.0)))
+        def ang(punto_extremo_1: np.ndarray, vertice_central: np.ndarray, punto_extremo_2: np.ndarray) -> float:
+            # Crear vectores desde la articulación central hacia los extremos (ej. de rodilla a cadera, y de rodilla a tobillo)
+            vector_hacia_1 = punto_extremo_1 - vertice_central
+            vector_hacia_2 = punto_extremo_2 - vertice_central
+            
+            # Formula del angulo entre dos vectores
+            coseno_del_angulo = np.dot(vector_hacia_1, vector_hacia_2) / (np.linalg.norm(vector_hacia_1) * np.linalg.norm(vector_hacia_2) + 1e-8)
 
-        def vec_ang(v: np.ndarray, ref: np.ndarray) -> float:
-            cos = np.dot(v, ref) / (np.linalg.norm(v) * np.linalg.norm(ref) + 1e-8)
-            return float(np.arccos(np.clip(cos, -1.0, 1.0)))
+            # Clip asegura que angulo esté entre -1 y 1. Se retorna angulo en radianes
+            return float(np.arccos(np.clip(coseno_del_angulo, -1.0, 1.0)))
+
+        # Angulo entre un vector y la vertical
+        def vec_ang(vector_postura: np.ndarray, vector_referencia: np.ndarray) -> float:
+            # Formula del angulo entre un vector y la vertical
+            coseno_del_angulo = np.dot(vector_postura, vector_referencia) / (np.linalg.norm(vector_postura) * np.linalg.norm(vector_referencia) + 1e-8)
+            # Clip asegura que angulo esté entre -1 y 1. Se retorna angulo en radianes
+            return float(np.arccos(np.clip(coseno_del_angulo, -1.0, 1.0)))
 
         # En coords normalizadas la cadera está en el origen; el "arriba" es -y
         vertical        = np.array([0.0, -1.0, 0.0])
@@ -254,30 +281,22 @@ class DataManager:
     @staticmethod
     def _detect(frame: np.ndarray, landmarker) -> np.ndarray | None:
         """Detecta pose en un frame BGR. Devuelve [33, 3] o None."""
-        rgb    = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        result = landmarker.detect(mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb))
+        # Convierte el frame de BGR a RGB
+        rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        
+        # Detecta pose
+        result = landmarker.detect(
+            # Convertir numpy array a mediapipe image
+            mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
+        )
+        
         if not result.pose_landmarks:
             return None
         return np.array(
+            # list comprehension para extraer los landmarks y almacenarlas en un array de numpy
             [[lm.x, lm.y, lm.z] for lm in result.pose_landmarks[0]],
             dtype=np.float32,
         )
-
-    @classmethod
-    def _forward_fill(
-        cls, indices: np.ndarray, frames_data: dict[int, np.ndarray]
-    ) -> list[np.ndarray]:
-        """Rellena hacia adelante los índices sin detección."""
-        result: list[np.ndarray] = []
-        last: np.ndarray | None  = None
-        for idx in indices:
-            if idx in frames_data:
-                last = frames_data[idx]
-            result.append(
-                last if last is not None
-                else np.zeros((cls.N_LANDMARKS, 3), dtype=np.float32)
-            )
-        return result
 
     @staticmethod
     def _best_segment(lms_list: list[np.ndarray], n: int) -> list[np.ndarray]:

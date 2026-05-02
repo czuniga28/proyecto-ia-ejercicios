@@ -52,9 +52,9 @@ The task requires the following steps — see progress tracking below:
 | Methodology section | ✅ Done | Frame extraction, structural normalization, biomechanical angles, tensors — in paper §Methodology |
 | Architecture section | ✅ Done | Conv1D + LSTM + sigmoid — in paper §Architecture |
 | Initial data exploration (histograms, heatmaps, missing data) | ✅ Done | Notebook + paper §4.4: landmark distributions, correlation heatmaps, joint proxies, squat_bad quality analysis |
-| Dataset preparation (missing values, scale vs normalization, train/val/test split) | ❌ Pending | Must add paper section explaining scale vs normalization; document split strategy and missing-frame handling |
-| Implementation (DataManager, DataLoader, RecognitionModel) | ❌ Pending | Formal OOP classes not yet written; poc/modelo_prototipo.py exists as throwaway prototype only |
-| Model architecture with hyperparameters | ⚠️ Partial | Architecture defined in paper; specific hyperparameter values not yet set |
+| Dataset preparation (missing values, scale vs normalization, train/val/test split) | ⚠️ Partial | Code done (DataLoader: stratified video-level split 70/15/15, StandardScaler train-only, forward-fill for missing frames); paper section still needed |
+| Implementation (DataManager, DataLoader, RecognitionModel) | ⚠️ Partial | DataManager ✅ src/data_manager.py — DataLoader ✅ src/data_loader.py — RecognitionModel ❌ pending |
+| Model architecture with hyperparameters | ⚠️ Partial | Architecture defined in paper; hyperparameter values (conv_filters, lstm_units, dropout, lr) to be set in RecognitionModel |
 | Training and hyperparameter tuning | ❌ Pending | |
 | Performance evaluation | ❌ Pending | |
 | Final report document | ⚠️ Partial | paper/main.tex has §1–6 (intro, related, dataset, methodology, architecture, design); missing §preparation, §results, §evaluation |
