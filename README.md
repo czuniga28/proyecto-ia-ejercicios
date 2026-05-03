@@ -7,7 +7,7 @@
 
 ## Descripción del Problema
 
-Clasificación binaria de la **calidad de ejecución biomecánica** en tres ejercicios:
+Clasificación binaria de la **calidad de ejecución biomecánica** en tres ejercicios de fuerza mediante una arquitectura híbrida CNN+LSTM y extracción de landmarks con MediaPipe BlazePose.
 
 | Ejercicio | Clases |
 |-----------|--------|
@@ -17,19 +17,27 @@ Clasificación binaria de la **calidad de ejecución biomecánica** en tres ejer
 
 ---
 
-## Arquitectura del Modelo
+## Resultados
 
-Pipeline híbrido **CNN + LSTM** que combina extracción de características espaciales por fotograma con modelado de dinámicas temporales entre fotogramas.
+| Métrica | Valor |
+|---------|-------|
+| Accuracy | 73.68% |
+| F1-score | 0.8148 |
+| Precision | 0.7333 |
+| Recall | 0.9167 |
+
+Modelo final: `seed=42`, umbral de decisión `τ=0.30`, early stopping en epoch 12/22.
+
+---
+
+## Arquitectura
 
 ```
-Video → 30 fotogramas → MediaPipe BlazePose → 33 landmarks (x, y, z)
-      → Ángulos articulares → CNN 1D → LSTM → Sigmoide → Correcto / Incorrecto
+Video (30 frames) → MediaPipe BlazePose → 33 landmarks (x,y,z) + 9 ángulos
+→ Tensor [30, 108] → CNN 1D (manual) → LSTM → Sigmoide → Correcto/Incorrecto
 ```
 
-**Componentes:**
-- **Spatial (CNN 1D):** extrae patrones de postura por fotograma
-- **Temporal (LSTM):** modela la secuencia de 30 fotogramas
-- **Clasificación:** capa densa + sigmoide → probabilidad binaria
+La capa CNN fue implementada manualmente con `nn.Parameter` + `tensor.unfold()` para comprender el mecanismo interno de la convolución.
 
 ---
 
@@ -37,43 +45,56 @@ Video → 30 fotogramas → MediaPipe BlazePose → 33 landmarks (x, y, z)
 
 ```
 proyecto_ia/
+├── src/
+│   ├── main.py                  # Pipeline completo (extraer → entrenar → evaluar)
+│   ├── data_manager.py          # Extracción de landmarks con MediaPipe
+│   ├── data_loader.py           # DataLoaders de PyTorch con split estratificado
+│   └── recognition_model.py    # Arquitectura CNN+LSTM y entrenamiento
 ├── paper/
-│   ├── main.tex            # Paper IEEE — diseño, metodología y arquitectura completos
-│   └── references.bib      # 6 referencias bibliográficas
-├── documento_tarea.pdf     # Enunciado original del proyecto
-├── download_bad_form.sh    # Script yt-dlp para descargar videos de mala forma
-└── README.md
+│   ├── main.tex                 # Paper IEEE (§1-9, figuras, resultados)
+│   ├── references.bib           # 6 referencias bibliográficas
+│   └── ai_usage_report.md      # Reporte de uso de IA
+├── notebooks/
+│   └── exploracion_datos.ipynb  # Análisis exploratorio del dataset
+├── figures/                     # Gráficas de exploración + curva de aprendizaje
+├── scripts/                     # Scripts auxiliares (descarga, normalización)
+├── data/                        # CSV de landmarks normalizados (131 videos)
+├── entrega/                     # Carpeta lista para entrega en Moodle
+└── .scratch/experiments/        # Registro de 4 experimentos de ajuste
 ```
 
-> **Nota:** Los videos del dataset no están incluidos en el repositorio por su tamaño (≈ 5 GB). Ver instrucciones de obtención abajo.
+---
+
+## Uso Rápido
+
+### Evaluar el modelo entrenado
+
+```bash
+python3 -m venv venv && source venv/bin/activate
+pip install torch scikit-learn pandas numpy matplotlib
+python3 src/main.py --eval-only
+```
+
+### Re-entrenar desde el CSV
+
+```bash
+python3 src/main.py --skip-extract
+```
+
+### Pipeline completo (requiere videos + MediaPipe)
+
+```bash
+python3 src/main.py
+```
 
 ---
 
 ## Dataset
 
-**Fuente principal (forma correcta):** [Workout/Exercises Video Dataset — Kaggle](https://www.kaggle.com/datasets/hasyimabdillah/workoutfitness-video)
+**Forma correcta:** [Workout/Exercises Video Dataset — Kaggle](https://www.kaggle.com/datasets/hasyimabdillah/workoutfitness-video)  
+**Forma incorrecta:** descargada con `scripts/download_bad_form.sh` (requiere `yt-dlp`)
 
-**Forma incorrecta:** descargar con el script incluido (requiere `yt-dlp`):
-
-```bash
-# Instalar dependencia
-pip install yt-dlp
-
-# Descargar ~25 videos de mala forma por ejercicio
-bash download_bad_form.sh
-```
-
-**Estructura esperada de `videos/` tras la descarga:**
-
-```
-videos/
-├── deadlift/        # 25 videos — forma correcta
-├── deadlift_bad/    # 26 videos — forma incorrecta
-├── squat/           # 25 videos — forma correcta
-├── squat_bad/       # 26 videos — forma incorrecta
-├── pull Up/         # 25 videos — forma correcta  ← directorio con espacio
-└── pull_up_bad/     # 25 videos — forma incorrecta
-```
+> Los videos no están incluidos en el repositorio (~5 GB). El CSV de landmarks extraídos sí está incluido en `data/` y en `entrega/data/`.
 
 ---
 
@@ -82,26 +103,10 @@ videos/
 | Herramienta | Uso |
 |-------------|-----|
 | `mediapipe` | Extracción de landmarks BlazePose (33 puntos) |
-| `opencv-python` | Lectura y muestreo de fotogramas |
-| `numpy` | Operaciones tensoriales y cálculo de ángulos |
-| `torch` / `keras` | Definición y entrenamiento del modelo CNN+LSTM |
-| Jupyter Notebooks | Exploración de datos e informes |
-
----
-
-## Instalación
-
-```bash
-# Clonar el repositorio
-git clone https://github.com/czuniga28/proyecto-ia-ejercicios.git
-cd proyecto-ia-ejercicios
-
-# Instalar dependencias
-pip install mediapipe opencv-python numpy torch yt-dlp
-
-# Descargar dataset de mala forma
-bash download_bad_form.sh
-```
+| `opencv-python` | Lectura de fotogramas |
+| `torch` | CNN+LSTM, entrenamiento, evaluación |
+| `scikit-learn` | StandardScaler, métricas, split estratificado |
+| `numpy` / `pandas` | Operaciones tensoriales y manejo de datos |
 
 ---
 
@@ -111,19 +116,17 @@ bash download_bad_form.sh
 |-------|--------|
 | Selección de dataset y definición del problema | ✅ Completo |
 | Diseño preliminar, arquitectura y metodología | ✅ Completo |
-| Trabajos relacionados (CNN, LSTM, CNN+LSTM, esqueleto) | ✅ Completo |
 | Selección de variables y características biomecánicas | ✅ Completo |
-| Descarga del dataset (forma correcta e incorrecta) | ✅ Completo |
-| Bibliografía (6 referencias académicas) | ✅ Completo |
 | Exploración inicial de datos (histogramas, heatmaps) | ✅ Completo |
-| Preparación del dataset (missing values, escala vs. normalización, split) | ⏳ Pendiente |
-| Implementación del código (DataManager, DataLoader, RecognitionModel) | ⏳ Pendiente |
-| Entrenamiento y ajuste de hiperparámetros | ⏳ Pendiente |
-| Evaluación del modelo | ⏳ Pendiente |
-| Informe final completo (con resultados y experimentos) | ⏳ Pendiente |
+| Preparación del dataset (normalización, split, missing frames) | ✅ Completo |
+| Implementación (DataManager, DataLoader, RecognitionModel) | ✅ Completo |
+| Entrenamiento y ajuste de hiperparámetros (4 experimentos) | ✅ Completo |
+| Evaluación del modelo (Accuracy 73.68%, F1 0.815) | ✅ Completo |
+| Informe final IEEE con figuras y resultados | ✅ Completo |
+| Reporte de uso de IA | ✅ Completo |
 
 ---
 
 ## Licencia
 
-Proyecto académico — Universidad. No se permite redistribución comercial.
+Proyecto académico — Universidad de Costa Rica. No se permite redistribución comercial.
