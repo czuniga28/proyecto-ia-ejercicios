@@ -89,10 +89,13 @@ def step_train() -> tuple:
     return model, test_loader, history
 
 
+THRESHOLD = 0.30  # Umbral de decisión optimizado en experimentación
+
+
 def step_evaluate(model: RecognitionModel, test_loader) -> None:
     """Evalúa el modelo sobre el test set."""
     print("── Paso 5: Evaluando en test set ───────────────────────────────────")
-    model.evaluate(test_loader)
+    model.evaluate(test_loader, threshold=THRESHOLD)
 
 
 def step_eval_only() -> None:
@@ -109,7 +112,7 @@ def step_eval_only() -> None:
 
     model = RecognitionModel(**HYPERPARAMS)
     model.load(WEIGHTS_PATH)
-    model.evaluate(test_loader)
+    model.evaluate(test_loader, threshold=THRESHOLD)
 
 
 # ── Punto de entrada ───────────────────────────────────────────────────────────
