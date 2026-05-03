@@ -52,14 +52,14 @@ The task requires the following steps — see progress tracking below:
 | Methodology section | ✅ Done | Frame extraction, structural normalization, biomechanical angles, tensors — in paper §Methodology |
 | Architecture section | ✅ Done | Conv1D + LSTM + sigmoid — in paper §Architecture |
 | Initial data exploration (histograms, heatmaps, missing data) | ✅ Done | Notebook + paper §4.4: landmark distributions, correlation heatmaps, joint proxies, squat_bad quality analysis |
-| Dataset preparation (missing values, scale vs normalization, train/val/test split) | ⚠️ Partial | Code done (DataLoader: stratified video-level split 70/15/15, StandardScaler train-only, forward-fill for missing frames); paper section still needed |
-| Implementation (DataManager, DataLoader, RecognitionModel) | ⚠️ Partial | DataManager ✅ src/data_manager.py — DataLoader ✅ src/data_loader.py — RecognitionModel ⚠️ src/recognition_model.py (CNNLSTMClassifier completo + __init__ + train_model; falta evaluate + save/load) |
-| Model architecture with hyperparameters | ⚠️ Partial | Architecture + hiperparámetros definidos en código (conv_filters=64, lstm_units=128, lstm_layers=2, dropout=0.3, lr=1e-3); pendiente documentar en paper |
-| Generar CSV de landmarks | ❌ Pending | Correr DataManager.extract_from_videos() → data/pose_landmarks_normalized.csv |
-| Training and hyperparameter tuning | ❌ Pending | |
-| Performance evaluation | ❌ Pending | |
-| Final report document | ⚠️ Partial | paper/main.tex tiene §1–6; faltan §preparación (normalización vs escalado, split), §hiperparámetros, §resultados, §evaluación |
-| AI usage report + prompt log | ❌ Pending | Required per assignment rules |
+| Dataset preparation (missing values, scale vs normalization, train/val/test split) | ✅ Done | Forward-fill, StandardScaler train-only, split 70/15/15 a nivel de video — código + paper §7 |
+| Implementation (DataManager, DataLoader, RecognitionModel) | ✅ Done | src/data_manager.py, src/data_loader.py, src/recognition_model.py |
+| Model architecture with hyperparameters | ✅ Done | conv_filters=64, lstm_units=128, dropout=0.3, lr=1e-3, seed=42 — paper §8 |
+| Generar CSV de landmarks | ✅ Done | data/pose_landmarks_normalized.csv (131 videos, 3930 filas) |
+| Training and hyperparameter tuning | ✅ Done | 4 experimentos documentados — .scratch/experiments/experimentos.md + paper §9 |
+| Performance evaluation | ✅ Done | Accuracy=73.68%, F1=0.815, Recall=0.917, umbral=0.30 — paper §9 |
+| Final report document | ✅ Done | paper/main.tex §1–9 + conclusión + figuras de exploración + curva de aprendizaje |
+| AI usage report + prompt log | ✅ Done | paper/ai_usage_report.md — 17 prompts representativos en 4 categorías |
 
 ## Technical Design (from documento_tarea.pdf)
 

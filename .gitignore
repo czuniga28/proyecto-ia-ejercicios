@@ -2,6 +2,16 @@
 videos/
 videos.zip
 dataset_limpio/
+Dataset_Wrong Exercises/
+
+# Artefactos temporales de entrenamiento
+_best_weights.pt
+
+# POC (prototipo desechable, no forma parte del proyecto final)
+poc/
+
+# CSV de landmarks (generado por DataManager — ver entrega/data/)
+data/pose_landmarks_dataset.csv
 
 # macOS
 .DS_Store

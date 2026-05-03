@@ -89,7 +89,3 @@ Los prompts se agrupan por categoría. Se listan los más representativos de cad
 
 ---
 
-## Notas
-
-- Los chats completos exportados están disponibles bajo petición.
-- Toda decisión final reflejada en el código y el paper fue tomada y comprendida por los integrantes del equipo.
