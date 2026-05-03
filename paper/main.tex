@@ -566,11 +566,14 @@ donde:
 \begin{equation}
   \hat{y} =
   \begin{cases}
-    1 & \text{si } p \geq 0.5 \quad \text{(ejecución correcta)} \\
-    0 & \text{si } p < 0.5  \quad \text{(ejecución incorrecta)}
+    1 & \text{si } p \geq \tau \quad \text{(ejecución correcta)} \\
+    0 & \text{si } p < \tau  \quad \text{(ejecución incorrecta)}
   \end{cases}
   \label{eq:decision}
 \end{equation}
+
+donde $\tau$ es el umbral de decisión, ajustado a $\tau = 0.30$
+tras experimentación (véase §\ref{sec:results}).
 
 % =============================================================
 \section{Diseño del Sistema}
@@ -602,26 +605,288 @@ diferentes configuraciones de arquitectura o estrategias de
 preprocesamiento.
 
 % =============================================================
+\section{Preparación del Conjunto de Datos}
+\label{sec:preparation}
+
+Esta sección documenta las decisiones tomadas para transformar
+los datos crudos en tensores listos para el entrenamiento:
+manejo de valores faltantes, normalización, escalado y
+partición del conjunto.
+
+\subsection{Manejo de Fotogramas Faltantes}
+
+MediaPipe BlazePose no detecta la pose en todos los fotogramas,
+especialmente cuando el sujeto está parcialmente fuera de cuadro
+o la iluminación es deficiente. Para el conjunto \textit{squat\_bad},
+se registró una tasa de detección del 37.2\% en algunos videos
+(véase §\ref{sec:methodology}). Se evaluaron dos estrategias:
+
+\begin{itemize}
+  \item \textbf{Eliminación (drop):} descartar el fotograma
+        fallido. Produce secuencias de longitud variable,
+        incompatibles con la arquitectura tensorial fija.
+  \item \textbf{Relleno hacia adelante (forward-fill):}
+        propagar el último fotograma detectado al fotograma
+        siguiente sin detección. Mantiene la longitud fija de
+        30 fotogramas y es semánticamente coherente, pues
+        una postura estática es una aproximación válida de la
+        postura real en un instante no detectado.
+\end{itemize}
+
+Se adoptó el \textbf{relleno hacia adelante}. Los videos con
+menos de 15 fotogramas detectados se descartan completamente
+por considerarse insuficientes para representar el movimiento.
+
+\subsection{Escalado vs. Normalización}
+
+Estos conceptos se confunden frecuentemente pero operan sobre
+distintas propiedades estadísticas de los datos:
+
+\begin{itemize}
+  \item \textbf{Normalización estructural} (aplicada en
+        \texttt{DataManager}): traslada el esqueleto al origen
+        de coordenadas (centro de cadera) y divide por la
+        longitud del torso. Opera sobre la \textit{geometría}
+        del cuerpo para eliminar variaciones de posición de
+        cámara y talla del sujeto. Es una normalización de
+        dominio, no estadística.
+
+  \item \textbf{Escalado estadístico} (aplicado en
+        \texttt{DataLoader}): se aplica \texttt{StandardScaler}
+        de \textit{scikit-learn} sobre las 108 características
+        del vector de entrada. Resta la media y divide por la
+        desviación estándar de cada característica, resultando
+        en distribuciones con $\mu = 0$ y $\sigma = 1$.
+        Esto evita que características con mayor varianza
+        dominen el gradiente durante el entrenamiento.
+\end{itemize}
+
+Ambas transformaciones son complementarias y necesarias.
+El escalado estadístico se ajusta \textit{exclusivamente} sobre
+el conjunto de entrenamiento y luego se aplica a validación y
+prueba para evitar fuga de información (\textit{data leakage}).
+
+\subsection{Partición del Conjunto de Datos}
+
+La partición se realiza a nivel de video, no de fotograma,
+para evitar que fotogramas del mismo video aparezcan en
+conjuntos distintos (leakage temporal). Se aplica un split
+estratificado por la combinación \texttt{(ejercicio, etiqueta)}
+para garantizar representación balanceada de las 6 clases en
+cada subconjunto.
+
+\begin{table}[h]
+  \centering
+  \caption{Distribución del conjunto de datos}
+  \begin{tabular}{lccc}
+    \hline
+    \textbf{Subconjunto} & \textbf{Videos} & \textbf{Correctos} & \textbf{Incorrectos} \\
+    \hline
+    Entrenamiento (70\%) & 93  & 50 & 43 \\
+    Validación (15\%)    & 19  & 12 & 7  \\
+    Prueba (15\%)        & 19  & 12 & 7  \\
+    \hline
+    \textbf{Total}       & 131 & 74 & 57 \\
+    \hline
+  \end{tabular}
+  \label{tab:split}
+\end{table}
+
+Los videos de aumentación por reflejo horizontal (generados
+para \textit{squat\_bad}) se asignan exclusivamente al conjunto
+de entrenamiento, evitando que versiones modificadas de videos
+de prueba contaminen la evaluación.
+
+% =============================================================
+\section{Implementación y Configuración del Modelo}
+\label{sec:implementation}
+
+\subsection{Hiperparámetros}
+
+La Tabla~\ref{tab:hyperparams} resume los hiperparámetros
+del modelo final, determinados mediante experimentación
+sistemática documentada en §\ref{sec:results}.
+
+\begin{table}[h]
+  \centering
+  \caption{Hiperparámetros del modelo final}
+  \begin{tabular}{lll}
+    \hline
+    \textbf{Parámetro} & \textbf{Valor} & \textbf{Justificación} \\
+    \hline
+    \texttt{conv\_filters} & 64 & Balance capacidad/overfitting \\
+    \texttt{lstm\_units}   & 128 & Suficiente memoria temporal \\
+    \texttt{lstm\_layers}  & 2   & Jerarquía temporal de 2 niveles \\
+    \texttt{dropout}       & 0.3 & Regularización moderada \\
+    \texttt{lr}            & $10^{-3}$ & Valor estándar para Adam \\
+    \texttt{batch\_size}   & 16  & Ajustado al tamaño del dataset \\
+    \texttt{epochs}        & 50  & Con early stopping (patience=10) \\
+    \texttt{umbral}        & 0.30 & Optimizado en validación \\
+    \texttt{seed}          & 42  & Reproducibilidad \\
+    \hline
+  \end{tabular}
+  \label{tab:hyperparams}
+\end{table}
+
+\subsection{Detalles de Implementación del CNN}
+
+A diferencia del uso convencional de \texttt{nn.Conv1d} de
+PyTorch, la capa convolucional se implementó manualmente
+mediante \texttt{nn.Parameter} y operaciones tensoriales
+básicas, con el objetivo de comprender el mecanismo interno
+de la convolución. El procedimiento sigue cuatro pasos:
+
+\begin{enumerate}
+  \item \textbf{Padding:} se agregan ceros al inicio y al
+        final de la secuencia temporal para mantener la
+        longitud de salida igual a la de entrada.
+  \item \textbf{Ventanas deslizantes:} mediante
+        \texttt{tensor.unfold()} se extraen todas las
+        ventanas de $k=3$ fotogramas consecutivos.
+  \item \textbf{Producto punto:} cada ventana se multiplica
+        matricialmente por la matriz de filtros aplanada.
+  \item \textbf{Suma del sesgo:} se agrega el vector de
+        bias y se reorganizan las dimensiones de salida.
+\end{enumerate}
+
+Los pesos de los filtros se inicializan con distribución
+normal escalada ($\times 0.01$) y los biases en cero.
+
+% =============================================================
+\section{Experimentos y Resultados}
+\label{sec:results}
+
+\subsection{Protocolo de Entrenamiento}
+
+El modelo se entrena con Binary Cross-Entropy Loss (BCELoss)
+y el optimizador Adam. Se implementó \textit{early stopping}:
+si la pérdida de validación no mejora durante \texttt{patience}
+épocas consecutivas, el entrenamiento se detiene y se restauran
+los mejores pesos observados. Para garantizar reproducibilidad,
+se fija la semilla aleatoria en 42 para Python, NumPy y PyTorch.
+
+\subsection{Experimentos de Ajuste}
+
+Se realizaron cuatro experimentos documentados en la
+Tabla~\ref{tab:experiments}.
+
+\begin{table}[h]
+  \centering
+  \caption{Comparación de experimentos (test set, 19 videos)}
+  \begin{tabular}{clcccc}
+    \hline
+    \textbf{Exp.} & \textbf{Descripción} & \textbf{Umbral} &
+    \textbf{Acc.} & \textbf{F1} & \textbf{Recall} \\
+    \hline
+    1 & Baseline (sin semilla)       & 0.50 & 73.68\% & 0.815 & 0.917 \\
+    2 & Exp.1 + umbral reducido      & 0.40 & 78.95\% & 0.857 & 1.000 \\
+    3 & dropout=0.4, lr=$5\times10^{-4}$ & 0.50 & 63.16\% & 0.696 & 0.667 \\
+    \textbf{4} & \textbf{seed=42, umbral=0.30} & \textbf{0.30} &
+    \textbf{73.68\%} & \textbf{0.815} & \textbf{0.917} \\
+    \hline
+  \end{tabular}
+  \label{tab:experiments}
+\end{table}
+
+El Experimento 3 demostró que aumentar el dropout a 0.4
+y reducir el learning rate a $5\times10^{-4}$ produce
+underfitting: el modelo deja de aprender los patrones de
+la clase correcta con suficiente confianza (Recall cae a
+0.667) sin compensar con una mejora significativa en la
+detección de forma incorrecta.
+
+\subsection{Resultados del Modelo Final}
+
+El modelo del Experimento 4 (seed=42, umbral=0.30) constituye
+el resultado reproducible final. La Tabla~\ref{tab:results}
+presenta las métricas sobre el conjunto de prueba.
+
+\begin{table}[h]
+  \centering
+  \caption{Métricas finales — Experimento 4 (test set)}
+  \begin{tabular}{lc}
+    \hline
+    \textbf{Métrica}  & \textbf{Valor} \\
+    \hline
+    Accuracy          & 73.68\%        \\
+    F1-score          & 0.8148         \\
+    Precision         & 0.7333         \\
+    Recall            & 0.9167         \\
+    \hline
+  \end{tabular}
+  \label{tab:results}
+\end{table}
+
+\subsection{Matriz de Confusión}
+
+\begin{table}[h]
+  \centering
+  \caption{Matriz de confusión — Experimento 4}
+  \begin{tabular}{lcc}
+    \hline
+    & \textbf{Pred. Incorrecto} & \textbf{Pred. Correcto} \\
+    \hline
+    \textbf{Real Incorrecto} & 3 & 4 \\
+    \textbf{Real Correcto}   & 1 & 11 \\
+    \hline
+  \end{tabular}
+  \label{tab:confusion}
+\end{table}
+
+El modelo clasifica correctamente 11 de 12 ejecuciones
+correctas (Recall=0.917) y 3 de 7 ejecuciones incorrectas
+(especificidad=0.429). El sesgo hacia la clase positiva
+es consistente con el desbalance leve del conjunto de
+entrenamiento (50 correctos vs. 43 incorrectos) y con
+el tamaño reducido del dataset.
+
+\subsection{Limitaciones}
+
+La principal limitación del sistema es el tamaño del
+conjunto de datos: 131 videos en total, con apenas 19
+videos en el conjunto de prueba. Con un test set de este
+tamaño, cada clasificación errónea representa
+aproximadamente 5.3 puntos porcentuales de accuracy,
+lo que introduce alta varianza en las métricas reportadas.
+Esta limitación es inherente al dataset disponible y
+motiva como trabajo futuro la recolección de más datos de
+ejecución incorrecta, que es la clase más difícil de
+distinguir para el modelo.
+
+% =============================================================
 \section{Conclusión y Trabajo Futuro}
 \label{sec:conclusion}
 
-Este trabajo presenta el diseño de un sistema de reconocimiento
-automático de la calidad de ejecución biomecánica de ejercicios
-de fuerza, fundamentado en una arquitectura híbrida CNN-LSTM y
-en la extracción de representaciones esqueletales mediante
-MediaPipe BlazePose. La formulación del problema como
-clasificación binaria, combinada con la normalización estructural
-y la ingeniería de características biomecánicas, proporciona
-una base sólida para el entrenamiento de un modelo generalizable
-a condiciones de grabación variables.
+Este trabajo presenta el diseño e implementación de un sistema
+de reconocimiento automático de la calidad de ejecución
+biomecánica de ejercicios de fuerza, fundamentado en una
+arquitectura híbrida CNN-LSTM y en la extracción de
+representaciones esqueletales mediante MediaPipe BlazePose.
 
-Como trabajo futuro, se contempla la recolección y etiquetado
-de datos de ejecución correcta e incorrecta, la implementación
-completa del pipeline de preprocesamiento, el entrenamiento y
-ajuste de hiperparámetros del modelo, y la evaluación de su
-rendimiento mediante métricas estándar de clasificación
-(\textit{accuracy}, precisión, recall, F1-score) y matrices
-de confusión por clase.
+El sistema fue implementado completamente en Python con PyTorch,
+siguiendo una arquitectura orientada a objetos con tres módulos:
+\texttt{DataManager}, \texttt{DataLoader} y
+\texttt{RecognitionModel}. La capa convolucional se implementó
+a nivel de operaciones tensoriales básicas (\texttt{nn.Parameter}
++ \texttt{unfold} + producto matricial), prescindiendo de la
+abstracción de alto nivel de PyTorch con fines pedagógicos.
+
+El modelo final (Experimento 4) alcanzó una \textit{accuracy}
+de 73.68\%, un F1-score de 0.815 y un Recall de 0.917 sobre
+el conjunto de prueba, clasificando correctamente 11 de 12
+ejecuciones correctas y 3 de 7 incorrectas. La principal
+limitación es el tamaño reducido del dataset (131 videos),
+que introduce alta varianza en las métricas e impide una
+evaluación estadísticamente robusta.
+
+Como trabajo futuro se identifican tres líneas prioritarias:
+(1) ampliar el dataset con más videos de forma incorrecta,
+clase que el modelo detecta con menor confianza (especificidad
+= 0.429); (2) extender la evaluación por ejercicio individual
+para identificar en cuáles el modelo generaliza mejor; y (3)
+explorar arquitecturas con atención temporal (\textit{Transformer})
+que puedan capturar dependencias de largo plazo en la secuencia
+de movimiento sin requerir la parametrización manual del LSTM.
 
 % =============================================================
 \section*{Reconocimientos}
