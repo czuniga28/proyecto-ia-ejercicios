@@ -17,6 +17,7 @@
 \usepackage{url}
 \usepackage{float}
 \usepackage{array}
+\usepackage{placeins}
 
 % ── Metadatos del documento ───────────────────────────────────
 \hypersetup{
@@ -382,15 +383,16 @@ de la columna que de la posición vertical de las articulaciones.
   \end{tabular}
 \end{table}
 
-\begin{figure*}[t]
+\begin{figure}[H]
   \centering
-  \includegraphics[width=\textwidth]{../figures/hist_landmark_y.png}
+  \includegraphics[width=\linewidth]{../figures/hist_landmark_y.png}
   \caption{Distribución de la coordenada $Y$ del landmark clave por ejercicio y
-           forma de ejecución. Correcta (rojo) vs. incorrecta (verde). El \textit{squat}
-           muestra la mayor separación entre distribuciones ($\Delta\text{mediana}=0.154$),
-           confirmando que la profundidad de la rodilla es altamente discriminante.}
+           forma de ejecución. El \textit{squat} muestra la mayor separación entre
+           distribuciones ($\Delta\text{mediana}=0.154$), confirmando que la
+           profundidad de la rodilla es altamente discriminante.}
   \label{fig:hist}
-\end{figure*}
+\end{figure}
+\FloatBarrier
 
 \subsubsection{Análisis de correlación entre articulaciones}
 
@@ -409,15 +411,16 @@ presenta mayor correlación ($\Delta=-0.127$ y $\Delta=-0.101$
 respectivamente), lo que sugiere un movimiento más rígido y
 menos articulado en la mala forma.
 
-\begin{figure*}[t]
+\begin{figure}[H]
   \centering
-  \includegraphics[width=\textwidth]{../figures/heatmap_correlacion.png}
+  \includegraphics[width=\linewidth]{../figures/heatmap_correlacion.png}
   \caption{Matrices de correlación de Pearson entre landmarks clave (coordenada $Y$)
            por ejercicio y forma. La correlación cadera-rodilla en \textit{squat} correcto
            ($r=0.841$) es notablemente superior a la incorrecta ($r=0.688$), reflejando
            la mayor sincronización articular en ejecuciones de calidad.}
   \label{fig:heatmap}
-\end{figure*}
+\end{figure}
+\FloatBarrier
 
 \subsubsection{Proxies de ángulos articulares}
 
@@ -453,16 +456,16 @@ real de columna que se calculará en la etapa de ingeniería
 de características. La Figura~\ref{fig:boxplot} ilustra la
 distribución completa de estos proxies.
 
-\begin{figure*}[t]
+\begin{figure}[H]
   \centering
-  \includegraphics[width=\textwidth]{../figures/boxplot_proxies.png}
-  \caption{Boxplots de proxies de ángulos articulares por ejercicio y forma de ejecución.
-           \textit{Squat}: mayor profundidad de rodilla en ejecución correcta.
-           \textit{Pull-up}: mayor extensión de brazo en ejecución correcta.
-           \textit{Deadlift}: distribuciones solapadas, confirmando que este ejercicio
-           requiere el ángulo real de columna para su discriminación.}
+  \includegraphics[width=\linewidth]{../figures/boxplot_proxies.png}
+  \caption{Boxplots de proxies de ángulos articulares por ejercicio y forma.
+           \textit{Squat} y \textit{pull-up} muestran diferencias sustanciales.
+           \textit{Deadlift} presenta distribuciones solapadas, requiriendo el
+           ángulo real de columna para su discriminación.}
   \label{fig:boxplot}
-\end{figure*}
+\end{figure}
+\FloatBarrier
 
 \subsection{Análisis de Calidad y Pipeline Alternativo para Squat Incorrecto}
 
