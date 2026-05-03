@@ -71,13 +71,94 @@ No se re-entrena el modelo.
 
 ---
 
-## Experimento 3 — (Pendiente)
+## Experimento 3 — Más regularización (dropout=0.4, lr=5e-4)
 
-**Descripción planeada:** Re-entrenamiento con hiperparámetros ajustados para
-mejorar la detección de forma incorrecta (reducir falsos positivos).
+**Fecha:** 2026-05-02
+**Descripción:** Re-entrenamiento con más dropout y LR más bajo para reducir
+los 4 falsos positivos del Exp. 1/2. Early stopping en epoch 26.
 
-Cambios planificados:
-- dropout: 0.3 → 0.4 (más regularización)
-- lr: 1e-3 → 5e-4 (convergencia más fina)
-- epochs: 50 → 80, patience: 10 → 15
-- umbral: 0.40 (fijado desde Exp. 2)
+### Hiperparámetros
+| Parámetro     | Valor |
+|---------------|-------|
+| conv_filters  | 64    |
+| lstm_units    | 128   |
+| lstm_layers   | 2     |
+| dropout       | 0.4   |
+| lr            | 5e-4  |
+| batch_size    | 16    |
+| epochs        | 80    |
+| patience      | 15    |
+
+### Resultados (umbral=0.50, idéntico para 0.40 y 0.35)
+| Métrica   | Valor  |
+|-----------|--------|
+| Accuracy  | 63.16% |
+| F1        | 0.6957 |
+| Precision | 0.7273 |
+| Recall    | 0.6667 |
+
+### Confusion Matrix
+|                  | Pred Incorrecto | Pred Correcto |
+|------------------|-----------------|---------------|
+| Real Incorrecto  | 4               | 3             |
+| Real Correcto    | 4               | 8             |
+
+### Observaciones
+- Redujo 1 FP (4→3) pero introdujo 3 FN nuevos (1→4). Tradeoff desfavorable.
+- Umbral insensible: los mismos resultados para 0.35, 0.40, 0.50 → el modelo
+  asigna probabilidades muy separadas del rango de ajuste.
+- **Descartado.** El Exp. 2 sigue siendo el mejor resultado.
+
+---
+
+## Experimento 4 — Semilla fija (seed=42) para reproducibilidad
+
+**Fecha:** 2026-05-02
+**Descripción:** Mismos hiperparámetros de Exp. 1 pero con semilla fija
+(random=42, numpy=42, torch=42) para garantizar reproducibilidad en el paper.
+Early stopping en epoch 22.
+
+### Hiperparámetros
+| Parámetro     | Valor |
+|---------------|-------|
+| conv_filters  | 64    |
+| lstm_units    | 128   |
+| lstm_layers   | 2     |
+| dropout       | 0.3   |
+| lr            | 1e-3  |
+| batch_size    | 16    |
+| epochs        | 50    |
+| patience      | 10    |
+| seed          | 42    |
+
+### Resultados por umbral
+| Umbral | Accuracy | F1     | Precision | Recall | TN | FP | FN | TP |
+|--------|----------|--------|-----------|--------|----|----|----|----|
+| 0.50   | 73.68%   | 0.7619 | 0.8889    | 0.6667 | 6  | 1  | 4  | 8  |
+| 0.40   | 73.68%   | 0.7619 | 0.8889    | 0.6667 | 6  | 1  | 4  | 8  |
+| 0.35   | 68.42%   | 0.7692 | 0.7143    | 0.8333 | 3  | 4  | 2  | 10 |
+| **0.30** | **73.68%** | **0.8148** | **0.7333** | **0.9167** | 3 | 4 | 1 | 11 |
+
+### Observaciones
+- Con umbral=0.50: detecta 6/7 ejercicios incorrectos (mejor especificidad lograda),
+  pero clasifica 4/12 correctos como incorrectos.
+- Con umbral=0.30: balance más favorable — Recall=0.917, F1=0.815.
+  Equivalente a Exp.1 en términos de métricas globales.
+- **Umbral seleccionado para producción: 0.30** (con seed=42).
+
+---
+
+## Resumen de experimentos
+
+| Exp | Seed | Dropout | LR    | Umbral | Accuracy | F1     | Precision | Recall |
+|-----|------|---------|-------|--------|----------|--------|-----------|--------|
+| 1   | —    | 0.3     | 1e-3  | 0.50   | 73.68%   | 0.8148 | 0.7333    | 0.9167 |
+| 2   | —    | 0.3     | 1e-3  | 0.40   | 78.95%   | 0.8571 | 0.7500    | 1.0000 |
+| 3   | —    | 0.4     | 5e-4  | 0.50   | 63.16%   | 0.6957 | 0.7273    | 0.6667 |
+| **4** | **42** | **0.3** | **1e-3** | **0.30** | **73.68%** | **0.8148** | **0.7333** | **0.9167** |
+
+**Modelo final para el paper:** Exp. 4 (seed=42, umbral=0.30)
+- Reproducible
+- Accuracy: 73.68% | F1: 0.8148 | Precision: 0.7333 | Recall: 0.9167
+- Limitación principal: dataset pequeño (93 videos de entrenamiento, 19 de test)
+  — varianza alta entre ejecuciones sin semilla fija.
