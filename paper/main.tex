@@ -800,6 +800,23 @@ si la pérdida de validación no mejora durante \texttt{patience}
 los mejores pesos observados. Para garantizar reproducibilidad,
 se fija la semilla aleatoria en 42 para Python, NumPy y PyTorch.
 
+La Figura~\ref{fig:loss} muestra la curva de aprendizaje del
+Experimento 4. La pérdida de entrenamiento desciende
+consistentemente, mientras la pérdida de validación alcanza su
+mínimo en la época 12 (val\_loss=0.568) y comienza a divergir
+posteriormente, señal de sobreajuste. El \textit{early stopping}
+activó en la época 22, restaurando los pesos de la época 12.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{../figures/curva_aprendizaje.png}
+  \caption{Curva de aprendizaje del Experimento 4 (seed=42).
+           La línea discontinua marca el mejor epoch (12) donde
+           se guardaron los pesos finales del modelo.}
+  \label{fig:loss}
+\end{figure}
+\FloatBarrier
+
 \subsection{Experimentos de Ajuste}
 
 Se realizaron cuatro experimentos documentados en la
